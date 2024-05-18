@@ -106,13 +106,13 @@ class AmberSummary:
         )
         energy_dataframe["ovo_final_price"] = (
             energy_dataframe["consumption"] * energy_dataframe["ovo_price"]
-        )
+        ).round(2)
         energy_dataframe["amber_final_price"] = (
             energy_dataframe["consumption"] * energy_dataframe["amber_price"]
-        )
+        ).round(2)
         energy_dataframe["difference"] = (
             energy_dataframe["amber_final_price"] - energy_dataframe["ovo_final_price"]
-        )
+        ).round(2)
         energy_dataframe["day"] = energy_dataframe["start_time"].dt.date
         energy_dataframe["_month"] = energy_dataframe["start_time"].dt.month
         energy_dataframe["_year"] = energy_dataframe["start_time"].dt.year
@@ -166,13 +166,19 @@ class AmberSummary:
         )
 
         avg_consumption = energy_dataframe["consumption"].mean()
-        avg_ovo_price = energy_dataframe["ovo_final_price"].mean()
-        avg_amber_price = energy_dataframe["amber_final_price"].mean()
-        price_difference = energy_dataframe["difference"].sum()
-        date_difference = (
-            energy_dataframe["start_time"].max() - energy_dataframe["start_time"].min()
+        avg_ovo_price = energy_dataframe["ovo_final_price"].sum() / len(
+            energy_dataframe["ovo_final_price"]
+        )
+        avg_amber_price = energy_dataframe["amber_final_price"].sum() // len(
+            energy_dataframe["amber_final_price"]
         )
         n_months = energy_dataframe["_month"].max() - energy_dataframe["_month"].min()
+        price_difference = energy_dataframe["difference"].sum()
+        price_difference_discounted = price_difference - (n_months * 25)
+        date_difference = (
+            timedelta(energy_dataframe["start_time"].max())
+            - timedelta(energy_dataframe["start_time"].min())
+        ).days
 
         email_text = f"""
         In the last {date_difference} days, the average consumption was {avg_consumption} kWh.
@@ -182,7 +188,7 @@ class AmberSummary:
         
         In total the raw difference in price (amber - ovo) was ${price_difference}.
 
-        But considering that the summary contains {n_months} months. And for each month you have a $25 credit, you would have saved ${price_difference - (n_months * 25)} with Amber.
+        But considering that the summary contains {n_months} months. And for each month you have a $25 credit, you would have saved ${price_difference_discounted} with Amber.
         """
 
         email.add_email_text(email_text=email_text)
