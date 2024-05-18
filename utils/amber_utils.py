@@ -29,8 +29,8 @@ class AmberSummary():
         self.configuration = amberelectric.Configuration(access_token=self.amber_key)
         self.api = amber_api.AmberApi.create(configuration=self.configuration)
         self.site_id = self.fetch_site_id()
-        self.start_date = datetime.date(2024, 2, 26)
         self.end_date = datetime.datetime.today() - timedelta(days=1)
+        self.start_date = self.end_date - timedelta(days=90)
 
     def fetch_site_id(self):
 
@@ -109,8 +109,10 @@ class AmberSummary():
         energy_dataframe["difference"] = (
             energy_dataframe["amber_final_price"] - energy_dataframe["ovo_final_price"]
         )
-        energy_dataframe["day"] = energy_dataframe["start_time"].dt.day
-        energy_dataframe["month"] = energy_dataframe["start_time"].dt.month
+        energy_dataframe["day"] = energy_dataframe["start_time"].dt.date
+        energy_dataframe["_month"] = energy_dataframe["start_time"].dt.month
+        energy_dataframe["_year"] = energy_dataframe["start_time"].dt.year
+        energy_dataframe["month"] = energy_dataframe.apply(lambda x: f"{x['_month']}-{x['_year']}", axis=1)
         energy_dataframe["year"] = energy_dataframe["start_time"].dt.year
 
         return energy_dataframe
@@ -118,22 +120,16 @@ class AmberSummary():
     def summarize_energy(self, summary_level: str, energy_dataframe: pd.DataFrame):
         
         if summary_level not in ["day", "month", "year"]:
-            raise ValueError("Invalid summary level. Please use 'day', 'month', or 'year'.")
-        elif summary_level == "day":
-            group_level = ["day", "month"]
-        elif summary_level == "month":
-            group_level = ["month", "year"]
+            raise ValueError("Invalid summary level. Please use 'day', 'month', or 'year'.")        
         
-        
-        energy_dataframe = energy_dataframe.groupby(summary_level).agg({
+        energy_dataframe = energy_dataframe.groupby(summary_level, as_index=True).agg({
             "consumption": "sum",
             "ovo_final_price": "sum",
             "amber_final_price": "sum",
             "difference": "sum",
-            "month": "first",
             }
-        )
-        energy_dataframe[group_level] = energy_dataframe[group_level].astype(int)
+        ).reset_index()
+        energy_dataframe.sort_values(by=summary_level, inplace=True)
 
 
         energy_dataframe.to_csv(f"summary_energy_{summary_level}.csv", index=False)
