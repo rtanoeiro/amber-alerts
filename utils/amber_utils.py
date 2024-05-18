@@ -157,7 +157,6 @@ class AmberSummary:
     def send_email_summary(
         self, email_text: str, summary_level: str, energy_dataframe: pd.DataFrame
     ):
-        self.logger.info("Sending email summary...")
 
         from utils.email_api import Email, EMAIL
 
@@ -194,6 +193,7 @@ class AmberSummary:
 
         But considering that the summary contains {n_months} months. And for each month you have a $25 credit, you would have saved ${price_difference_discounted} with Amber.
         """
+        self.logger.info("Sending email summary...")
 
         email.add_email_text(email_text=email_text)
         email.add_dataframe_attachment(
