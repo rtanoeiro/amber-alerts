@@ -149,13 +149,35 @@ class AmberSummary:
         self, email_text: str, summary_level: str, energy_dataframe: pd.DataFrame
     ):
 
-        from utils.email_api import Email
+        from utils.email_api import Email, EMAIL
 
-        email = Email(to_address=[Email().default_sender], subject="Energy Summary")
-        energy_dataframe = self.summarize_energy(
+        email = Email(to_address=[EMAIL], subject="Energy Summary")
+        energy_dataframe_month = self.summarize_energy(
             summary_level="month", energy_dataframe=energy_dataframe
         )
-        email_text = f"Summary of Energy Usage by {summary_level}:\n\n{energy_dataframe.to_string()}"
+        energy_dataframe_day = self.summarize_energy(
+            summary_level="day", energy_dataframe=energy_dataframe
+        )
+
+        avg_consumption = energy_dataframe["consumption"].mean()
+        avg_ovo_price = energy_dataframe["ovo_final_price"].mean()
+        avg_amber_price = energy_dataframe["amber_final_price"].mean()
+        price_difference = energy_dataframe["difference"].sum()
+        date_difference = (
+            energy_dataframe["start_time"].max() - energy_dataframe["start_time"].min()
+        )
+        n_months = energy_dataframe["_month"].max() - energy_dataframe["_month"].min()
+
+        email_text = f"""
+        In the last {date_difference} days, the average consumption was {avg_consumption} kWh.
+
+        The average OVO price for that period would be ${avg_ovo_price}.
+        The average Amber price was ${avg_amber_price}.
+        
+        In total the raw difference in price (amber - ovo) was ${price_difference}.
+
+        But considering that the summary contains {n_months} months. And for each month you have a $25 credit, you would have saved ${price_difference - (n_months * 25)} with Amber.
+        """
 
         return email_text
 
