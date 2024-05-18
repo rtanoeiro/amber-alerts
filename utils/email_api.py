@@ -21,6 +21,7 @@ if SMTP_USERNAME is None:
 SMTP_PASSWORD: str = os.environ["SMTP_PASSWORD"]
 if SMTP_PASSWORD is None:
     raise ValueError("SMTP_PASSWORD not found in environment variables")
+EMAIL = os.environ["EMAIL"]
 
 
 class Email:
@@ -52,7 +53,7 @@ class Email:
         self.smtp_server = SMTP_SERVER
         self.smtp_username = SMTP_USERNAME
         self.smtp_password = SMTP_PASSWORD
-        self.default_sender = EMAILS["ANALYTICS_EMAIL"]
+        self.default_sender = EMAIL
         self.to_address = to_address
 
         self.message["From"] = self.default_sender
@@ -89,7 +90,6 @@ class Email:
         )
         self.message.attach(attachment)
 
-    # TODO: Modify to image binary instead of path
     def add_image_attachment(self, image_path: str, image_name: str) -> None:
         """
         Function to add an image to the email.
