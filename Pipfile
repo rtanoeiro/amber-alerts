@@ -7,6 +7,8 @@ name = "pypi"
 amberelectric = "*"
 python-dotenv = "*"
 pandas = "*"
+numpy = "*"
+pandas-stubs = "*"
 
 [dev-packages]
 
