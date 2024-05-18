@@ -30,7 +30,7 @@ class AmberSummary:
         logging.basicConfig(
             format="%(asctime)s - %(message)s",
             filename="AmberAlerts.log",
-            level=logging.INFO,
+            level=logging.DEBUG,
         )
         self.logger.info("Initializing AmberSummary")
         self.amber_key = AMBER_KEY
@@ -110,13 +110,13 @@ class AmberSummary:
         )
         energy_dataframe["ovo_final_price"] = (
             energy_dataframe["consumption"] * energy_dataframe["ovo_price"]
-        ).round(2)
+        )
         energy_dataframe["amber_final_price"] = (
             energy_dataframe["consumption"] * energy_dataframe["amber_price"]
-        ).round(2)
+        )
         energy_dataframe["difference"] = (
             energy_dataframe["amber_final_price"] - energy_dataframe["ovo_final_price"]
-        ).round(2)
+        )
         energy_dataframe["day"] = energy_dataframe["start_time"].dt.date
         energy_dataframe["_month"] = energy_dataframe["start_time"].dt.month
         energy_dataframe["_year"] = energy_dataframe["start_time"].dt.year
@@ -167,20 +167,15 @@ class AmberSummary:
         energy_dataframe_day = self.summarize_energy(
             summary_level="day", energy_dataframe=energy_dataframe
         )
-
-        avg_consumption = energy_dataframe["consumption"].mean()
-        avg_ovo_price = energy_dataframe["ovo_final_price"].sum() / len(
-            energy_dataframe["ovo_final_price"]
-        )
-        avg_amber_price = energy_dataframe["amber_final_price"].sum() // len(
-            energy_dataframe["amber_final_price"]
-        )
+        size = len(energy_dataframe_day["amber_final_price"])
+        avg_consumption = round(energy_dataframe["consumption"].sum() / size, 2)
+        avg_ovo_price = round(energy_dataframe["ovo_final_price"].sum() / size, 2)
+        avg_amber_price = round(energy_dataframe["amber_final_price"].sum() / size, 2)
         n_months = energy_dataframe["_month"].max() - energy_dataframe["_month"].min()
-        price_difference = energy_dataframe["difference"].sum() / 100
-        price_difference_discounted = price_difference - (n_months * 25) / 100
+        price_difference = round(energy_dataframe["difference"].sum() / 100, 2)
+        price_difference_discounted = round(price_difference - (n_months * 25) / 100, 2)
         date_difference = (
-            timedelta(energy_dataframe["start_time"].max())
-            - timedelta(energy_dataframe["start_time"].min())
+            energy_dataframe["start_time"].max() - energy_dataframe["start_time"].min()
         ).days
 
         email_text = f"""
