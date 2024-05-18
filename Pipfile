@@ -11,6 +11,9 @@ numpy = "*"
 pandas-stubs = "*"
 
 [dev-packages]
+black = "*"
+mypy = "*"
+pylint = "*"
 
 [requires]
 python_version = "3.11"
