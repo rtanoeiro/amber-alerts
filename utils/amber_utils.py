@@ -168,18 +168,20 @@ class AmberSummary:
             summary_level="day", energy_dataframe=energy_dataframe
         )
         size = len(energy_dataframe_day["amber_final_price"])
+        n_days = (
+            energy_dataframe_day["day"].max() - energy_dataframe_day["day"].min()
+        ).days
         avg_consumption = round(energy_dataframe["consumption"].sum() / size, 2)
         avg_ovo_price = round(energy_dataframe["ovo_final_price"].sum() / size, 2)
         avg_amber_price = round(energy_dataframe["amber_final_price"].sum() / size, 2)
         n_months = energy_dataframe["_month"].max() - energy_dataframe["_month"].min()
-        price_difference = round(energy_dataframe["difference"].sum() / 100, 2)
+        price_difference = round(
+            (energy_dataframe["difference"].sum() + (n_days * (93.50 - 110))) / 100, 2
+        )
         price_difference_discounted = round(price_difference - (n_months * 25) / 100, 2)
-        date_difference = (
-            energy_dataframe["start_time"].max() - energy_dataframe["start_time"].min()
-        ).days
 
         email_text = f"""
-        In the last {date_difference} days, the average consumption was {avg_consumption} kWh.
+        In the last {n_days} days, the average consumption was {avg_consumption} kWh.
 
         The average OVO price for that period would be ${avg_ovo_price}.
         The average Amber price was ${avg_amber_price}.
