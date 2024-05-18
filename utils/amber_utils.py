@@ -27,7 +27,11 @@ class AmberSummary:
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        logging.basicConfig(filename="AmberAlerts.log", level=logging.INFO)
+        logging.basicConfig(
+            format="%(asctime)s - %(message)s",
+            filename="AmberAlerts.log",
+            level=logging.INFO,
+        )
         self.logger.info("Initializing AmberSummary")
         self.amber_key = AMBER_KEY
         self.configuration = amberelectric.Configuration(access_token=self.amber_key)
@@ -173,8 +177,8 @@ class AmberSummary:
             energy_dataframe["amber_final_price"]
         )
         n_months = energy_dataframe["_month"].max() - energy_dataframe["_month"].min()
-        price_difference = energy_dataframe["difference"].sum()
-        price_difference_discounted = price_difference - (n_months * 25)
+        price_difference = energy_dataframe["difference"].sum() / 100
+        price_difference_discounted = price_difference - (n_months * 25) / 100
         date_difference = (
             timedelta(energy_dataframe["start_time"].max())
             - timedelta(energy_dataframe["start_time"].min())
