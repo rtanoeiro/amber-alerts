@@ -28,6 +28,7 @@ class AmberSummary:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         logging.basicConfig(filename="AmberAlerts.log", level=logging.INFO)
+        self.logger.info("Initializing AmberSummary")
         self.amber_key = AMBER_KEY
         self.configuration = amberelectric.Configuration(access_token=self.amber_key)
         self.api = amber_api.AmberApi.create(configuration=self.configuration)
@@ -36,36 +37,36 @@ class AmberSummary:
         self.start_date = self.end_date - timedelta(days=90)
 
     def fetch_site_id(self):
-
+        self.logger.info("Fetching site ID")
         try:
             sites = self.api.get_sites()
             site_id = sites[0].id
         except amberelectric.ApiException as e:
-            print(f"Exception: {e}\n")
-
+            self.logger.error(f"Exception: {e}\n")
         return site_id
 
     def get_usage(self):
+        self.logger.info("Getting usage data")
         usage = self.api.get_usage(
             site_id=self.site_id,
             start_date=self.start_date,
             end_date=self.end_date,
         )
-
+        self.logger.info("Usage data retrieved")
         return usage
 
     def get_prices(self):
-
+        self.logger.info("Getting price data...")
         price = self.api.get_prices(
             site_id=self.site_id,
             start_date=self.start_date,
             end_date=self.end_date,
         )
-
+        self.logger.info("Price data retrieved")
         return price
 
     def create_energy_dataframe(self) -> pd.DataFrame:
-
+        self.logger.info("Creating energy DataFrame...")
         usage = self.get_usage()
         prices = self.get_prices()
         energy_dict: EnergyDict = {
@@ -80,11 +81,11 @@ class AmberSummary:
             energy_dict["consumption"].append(usage_item.kwh)
             energy_dict["amber_price"].append(price_item.per_kwh)
             energy_dict["channel"].append(usage_item.channelIdentifier)
-
+        self.logger.info("Energy DataFrame created")
         return pd.DataFrame(energy_dict)
 
     def basic_formatting(self, energy_dataframe: pd.DataFrame) -> pd.DataFrame:
-
+        self.logger.info("Starting basic formatting...")
         energy_dataframe["ovo_price"] = np.where(
             energy_dataframe["channel"] == "E2",
             17.71,
@@ -119,10 +120,13 @@ class AmberSummary:
             lambda x: f"{x['_month']}-{x['_year']}", axis=1
         )
         energy_dataframe["year"] = energy_dataframe["start_time"].dt.year
+        self.logger.info("Basic formatting done")
 
         return energy_dataframe
 
-    def summarize_energy(self, summary_level: str, energy_dataframe: pd.DataFrame):
+    def summarize_energy(
+        self, summary_level: str, energy_dataframe: pd.DataFrame
+    ) -> pd.DataFrame:
 
         if summary_level not in ["day", "month", "year"]:
             raise ValueError(
@@ -142,12 +146,14 @@ class AmberSummary:
             .reset_index()
         )
         energy_dataframe.sort_values(by=summary_level, inplace=True)
+        self.logger.info("Energy summarized by %s", summary_level)
 
-        energy_dataframe.to_csv(f"summary_energy_{summary_level}.csv", index=False)
+        return energy_dataframe
 
     def send_email_summary(
         self, email_text: str, summary_level: str, energy_dataframe: pd.DataFrame
     ):
+        self.logger.info("Sending email summary...")
 
         from utils.email_api import Email, EMAIL
 
@@ -179,9 +185,18 @@ class AmberSummary:
         But considering that the summary contains {n_months} months. And for each month you have a $25 credit, you would have saved ${price_difference - (n_months * 25)} with Amber.
         """
 
+        email.add_email_text(email_text=email_text)
+        email.add_dataframe_attachment(
+            attachment_name="summary_energy_month.csv",
+            attachment_dataframe=energy_dataframe_month,
+        )
+        email.send_email()
+        self.logger.info("Email summary sent")
+
         return email_text
 
     def trigger_job(self):
+        self.logger.info("Triggering job")
         energy_dataframe = self.create_energy_dataframe()
         energy_dataframe = self.basic_formatting(energy_dataframe=energy_dataframe)
         self.send_email_summary(
@@ -189,3 +204,4 @@ class AmberSummary:
             summary_level="month",
             energy_dataframe=energy_dataframe,
         )
+        self.logger.info("Job triggered")
