@@ -1,6 +1,5 @@
 if __name__ == "__main__":
+    from utils.amber_utils import Amber
 
-    from utils.amber_utils import AmberSummary
-
-    amber_obj = AmberSummary()
-    amber_obj.trigger_job()
+    amber_obj = Amber()
+    amber_obj.get_usage()

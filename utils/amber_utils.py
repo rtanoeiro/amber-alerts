@@ -1,6 +1,7 @@
 import logging
 import os
 
+from datetime import datetime, timedelta
 from amberelectric.exceptions import ApiException
 from dotenv import load_dotenv
 from amberelectric.api.amber_api import AmberApi
@@ -13,7 +14,7 @@ AMBER_KEY = os.getenv("AMBER_KEY")
 SITE_ID = os.getenv("SITE_ID")
 
 
-class AmberSummary:
+class Amber:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         logging.basicConfig(
@@ -26,6 +27,8 @@ class AmberSummary:
         self.configuration = Configuration(access_token=AMBER_KEY)
         self.api = AmberApi(api_client=ApiClient(configuration=self.configuration))
         self.site_id = self.fetch_site_id()
+        self.default_start_date = datetime.today() - timedelta(days=1)
+        self.default_end_date = datetime.today()
 
     def fetch_site_id(self):
         if SITE_ID:
@@ -39,3 +42,12 @@ class AmberSummary:
             except ApiException as e:
                 self.logger.error(f"Exception: {e}\n")
             return site_id
+
+    def get_usage(self):
+        results = self.api.get_usage(
+            self.site_id,
+            start_date=self.default_start_date,
+            end_date=self.default_end_date,
+        )
+        with open("usage.json", "w") as f:
+            f.write(str(results))
