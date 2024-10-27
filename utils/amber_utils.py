@@ -1,30 +1,41 @@
 import logging
 import os
-import datetime
-from datetime import timedelta
 from typing import TypedDict
 
-import amberelectric  # type: ignore
-import numpy as np
-import pandas as pd
-from amberelectric.api import amber_api  # type: ignore
+from datetime import datetime, timedelta
+from amberelectric.exceptions import ApiException
+from amberelectric.models.usage import Usage
 from dotenv import load_dotenv
+from amberelectric.api.amber_api import AmberApi
+from amberelectric.configuration import Configuration
+from amberelectric.api_client import ApiClient
 
 load_dotenv()
 
-
-class EnergyDict(TypedDict):
-    start_time: list
-    consumption: list
-    amber_price: list
-    channel: list
-
-
 AMBER_KEY = os.getenv("AMBER_KEY")
+SITE_ID = os.getenv("SITE_ID")
 
 
-class AmberSummary:
+class EnergyUsage(TypedDict):
+    energy_type: list[str]
+    duration: list[int]
+    spot_per_kwh: list[float]
+    per_kwh: list[float]
+    date: list[datetime]
+    nem_time: list[datetime]
+    start_time: list[datetime]
+    end_time: list[datetime]
+    renewables: list[float]
+    channel_type: list[str]
+    spike_status: list[str]
+    descriptor: list[float]
+    channel_identifier: list[str]
+    kwh: list[float]
+    quality: list[str]
+    energy_cost: list[float]
 
+
+class Amber:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         logging.basicConfig(
@@ -34,181 +45,65 @@ class AmberSummary:
         )
         self.logger.info("Initializing AmberSummary")
         self.amber_key = AMBER_KEY
-        self.configuration = amberelectric.Configuration(access_token=self.amber_key)
-        self.api = amber_api.AmberApi.create(configuration=self.configuration)
+        self.configuration = Configuration(access_token=AMBER_KEY)
+        self.api = AmberApi(api_client=ApiClient(configuration=self.configuration))
         self.site_id = self.fetch_site_id()
-        self.end_date = datetime.datetime.today() - timedelta(days=1)
-        self.start_date = self.end_date - timedelta(days=90)
+        self.default_start_date = datetime.today() - timedelta(days=2)
+        self.default_end_date = datetime.today() - timedelta(days=1, hours=22)
+        self.energy_dict: EnergyUsage = self.create_energy_dict()
+
+    def create_energy_dict(self) -> EnergyUsage:
+        keys = EnergyUsage.__annotations__.keys()
+        dict_to_create = {}
+        for key in keys:
+            dict_to_create[key] = []
+
+        return dict_to_create
 
     def fetch_site_id(self):
-        self.logger.info("Fetching site ID")
-        try:
-            sites = self.api.get_sites()
-            site_id = sites[0].id
-        except amberelectric.ApiException as e:
-            self.logger.error(f"Exception: {e}\n")
-        return site_id
+        if SITE_ID:
+            self.logger.info("Site ID found in environment variables")
+            return SITE_ID
+        else:
+            self.logger.info("Fetching site ID...")
+            try:
+                sites = self.api.get_sites()
+                site_id = sites[0].id
+            except ApiException as e:
+                self.logger.error(f"Exception: {e}\n")
+            return site_id
 
     def get_usage(self):
-        self.logger.info("Getting usage data")
-        usage = self.api.get_usage(
-            site_id=self.site_id,
-            start_date=self.start_date,
-            end_date=self.end_date,
+        results = self.api.get_usage(
+            self.site_id,
+            start_date=self.default_start_date,
+            end_date=self.default_end_date,
         )
-        self.logger.info("Usage data retrieved")
-        return usage
 
-    def get_prices(self):
-        self.logger.info("Getting price data...")
-        price = self.api.get_prices(
-            site_id=self.site_id,
-            start_date=self.start_date,
-            end_date=self.end_date,
-        )
-        self.logger.info("Price data retrieved")
-        return price
+        return results
 
-    def create_energy_dataframe(self) -> pd.DataFrame:
-        self.logger.info("Creating energy DataFrame...")
-        usage = self.get_usage()
-        prices = self.get_prices()
-        energy_dict: EnergyDict = {
-            "start_time": [],
-            "consumption": [],
-            "amber_price": [],
-            "channel": [],
-        }
+    def unwrap_usage(self, usage: list[Usage]) -> list[EnergyUsage]:
+        energy_list = []
+        for item in usage:
+            energy_dict = {}
+            # Each usage item in the list is converted into a dictionary
+            energy_dict["energy_type"] = item.type
+            energy_dict["duration"] = item.duration
+            energy_dict["spot_per_kwh"] = item.spot_per_kwh
+            energy_dict["per_kwh"] = item.per_kwh
+            energy_dict["date"] = item.var_date
+            energy_dict["nem_time"] = item.nem_time
+            energy_dict["start_time"] = item.start_time
+            energy_dict["end_time"] = item.end_time
+            energy_dict["renewables"] = item.renewables
+            energy_dict["channel_type"] = item.channel_type
+            energy_dict["spike_status"] = item.spike_status
+            energy_dict["descriptor"] = item.descriptor
+            energy_dict["channel_identifier"] = item.channel_identifier
+            energy_dict["kwh"] = item.kwh
+            energy_dict["quality"] = item.quality
+            energy_dict["energy_cost"] = item.cost
+            # The final dictionary is appended to a list, containing a list of EnergyUsage dictionaries
+            energy_list.append(energy_dict)
 
-        for usage_item, price_item in zip(usage, prices):
-            energy_dict["start_time"].append(usage_item.start_time)
-            energy_dict["consumption"].append(usage_item.kwh)
-            energy_dict["amber_price"].append(price_item.per_kwh)
-            energy_dict["channel"].append(usage_item.channelIdentifier)
-        self.logger.info("Energy DataFrame created")
-        return pd.DataFrame(energy_dict)
-
-    def basic_formatting(self, energy_dataframe: pd.DataFrame) -> pd.DataFrame:
-        self.logger.info("Starting basic formatting...")
-        energy_dataframe["ovo_price"] = np.where(
-            energy_dataframe["channel"] == "E2",
-            17.71,
-            np.where(
-                (energy_dataframe["start_time"].dt.hour == 15)
-                | (energy_dataframe["start_time"].dt.hour == 16)
-                | (energy_dataframe["start_time"].dt.hour == 17)
-                | (energy_dataframe["start_time"].dt.hour == 18)
-                | (energy_dataframe["start_time"].dt.hour == 19)
-                | (energy_dataframe["start_time"].dt.hour == 20),
-                27.61,
-                17.05,
-            ),
-        )
-        energy_dataframe["start_time"] = pd.to_datetime(energy_dataframe["start_time"])
-        energy_dataframe["start_time"] = energy_dataframe["start_time"].dt.tz_convert(
-            "Australia/Melbourne"
-        )
-        energy_dataframe["ovo_final_price"] = (
-            energy_dataframe["consumption"] * energy_dataframe["ovo_price"]
-        )
-        energy_dataframe["amber_final_price"] = (
-            energy_dataframe["consumption"] * energy_dataframe["amber_price"]
-        )
-        energy_dataframe["difference"] = (
-            energy_dataframe["amber_final_price"] - energy_dataframe["ovo_final_price"]
-        )
-        energy_dataframe["day"] = energy_dataframe["start_time"].dt.date
-        energy_dataframe["_month"] = energy_dataframe["start_time"].dt.month
-        energy_dataframe["_year"] = energy_dataframe["start_time"].dt.year
-        energy_dataframe["month"] = energy_dataframe.apply(
-            lambda x: f"{x['_month']}-{x['_year']}", axis=1
-        )
-        energy_dataframe["year"] = energy_dataframe["start_time"].dt.year
-        self.logger.info("Basic formatting done")
-
-        return energy_dataframe
-
-    def summarize_energy(
-        self, summary_level: str, energy_dataframe: pd.DataFrame
-    ) -> pd.DataFrame:
-
-        if summary_level not in ["day", "month", "year"]:
-            raise ValueError(
-                "Invalid summary level. Please use 'day', 'month', or 'year'."
-            )
-
-        energy_dataframe = (
-            energy_dataframe.groupby(summary_level, as_index=True)
-            .agg(
-                {
-                    "consumption": "sum",
-                    "ovo_final_price": "sum",
-                    "amber_final_price": "sum",
-                    "difference": "sum",
-                }
-            )
-            .reset_index()
-        )
-        energy_dataframe.sort_values(by=summary_level, inplace=True)
-        self.logger.info("Energy summarized by %s", summary_level)
-
-        return energy_dataframe
-
-    def send_email_summary(
-        self, email_text: str, summary_level: str, energy_dataframe: pd.DataFrame
-    ):
-
-        from utils.email_api import Email, EMAIL
-
-        email = Email(to_address=[EMAIL], subject="Energy Summary")
-        energy_dataframe_month = self.summarize_energy(
-            summary_level="month", energy_dataframe=energy_dataframe
-        )
-        energy_dataframe_day = self.summarize_energy(
-            summary_level="day", energy_dataframe=energy_dataframe
-        )
-        size = len(energy_dataframe_day["amber_final_price"])
-        n_days = (
-            energy_dataframe_day["day"].max() - energy_dataframe_day["day"].min()
-        ).days
-        avg_consumption = round(energy_dataframe["consumption"].sum() / size, 2)
-        avg_ovo_price = round(energy_dataframe["ovo_final_price"].sum() / size, 2)
-        avg_amber_price = round(energy_dataframe["amber_final_price"].sum() / size, 2)
-        n_months = energy_dataframe["_month"].max() - energy_dataframe["_month"].min()
-        price_difference = round(
-            (energy_dataframe["difference"].sum() + (n_days * (93.50 - 110))) / 100, 2
-        )
-        price_difference_discounted = round(price_difference - (n_months * 25) / 100, 2)
-
-        email_text = f"""
-        In the last {n_days} days, the average consumption was {avg_consumption} kWh.
-
-        The average OVO price for that period would be ${avg_ovo_price}.
-        The average Amber price was ${avg_amber_price}.
-        
-        In total the raw difference in price (amber - ovo) was ${price_difference}.
-
-        But considering that the summary contains {n_months} months. And for each month you have a $25 credit, you would have saved ${price_difference_discounted} with Amber.
-        """
-        self.logger.info("Sending email summary...")
-
-        email.add_email_text(email_text=email_text)
-        email.add_dataframe_attachment(
-            attachment_name="summary_energy_month.csv",
-            attachment_dataframe=energy_dataframe_month,
-        )
-        email.send_email()
-        self.logger.info("Email summary sent")
-
-        return email_text
-
-    def trigger_job(self):
-        self.logger.info("Triggering job")
-        energy_dataframe = self.create_energy_dataframe()
-        energy_dataframe = self.basic_formatting(energy_dataframe=energy_dataframe)
-        self.send_email_summary(
-            email_text="Energy Summary",
-            summary_level="month",
-            energy_dataframe=energy_dataframe,
-        )
-        self.logger.info("Job triggered")
+        return energy_list
