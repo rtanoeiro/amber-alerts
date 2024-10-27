@@ -54,7 +54,7 @@ def test_unwrap_usage(amber_obj: Amber):
     ]
     energy_dict = amber_obj.unwrap_usage(data)
     assert energy_dict == {
-        "type": ["Usage"],
+        "energy_type": ["Usage"],
         "duration": [30],
         "spot_per_kwh": [10.82936],
         "per_kwh": [21.95831],
@@ -73,5 +73,5 @@ def test_unwrap_usage(amber_obj: Amber):
         "channel_identifier": ["E1"],
         "kwh": [0.069],
         "quality": ["billable"],
-        "cost": [1.5151],
+        "energy_cost": [1.5151],
     }

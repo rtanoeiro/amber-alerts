@@ -5,7 +5,6 @@ from typing import TypedDict
 from datetime import datetime, timedelta
 from amberelectric.exceptions import ApiException
 from amberelectric.models.usage import Usage
-from amberelectric.models.spike_status import SpikeStatus
 from dotenv import load_dotenv
 from amberelectric.api.amber_api import AmberApi
 from amberelectric.configuration import Configuration
@@ -18,7 +17,7 @@ SITE_ID = os.getenv("SITE_ID")
 
 
 class EnergyUsage(TypedDict):
-    type: list[str]
+    energy_type: list[str]
     duration: list[int]
     spot_per_kwh: list[float]
     per_kwh: list[float]
@@ -28,12 +27,12 @@ class EnergyUsage(TypedDict):
     end_time: list[datetime]
     renewables: list[float]
     channel_type: list[str]
-    spike_status: list[SpikeStatus]
+    spike_status: list[str]
     descriptor: list[float]
     channel_identifier: list[str]
     kwh: list[float]
     quality: list[str]
-    cost: list[float]
+    energy_cost: list[float]
 
 
 class Amber:
@@ -50,7 +49,7 @@ class Amber:
         self.api = AmberApi(api_client=ApiClient(configuration=self.configuration))
         self.site_id = self.fetch_site_id()
         self.default_start_date = datetime.today() - timedelta(days=2)
-        self.default_end_date = datetime.today() - timedelta(days=1)
+        self.default_end_date = datetime.today() - timedelta(days=1, hours=22)
         self.energy_dict: EnergyUsage = self.create_energy_dict()
 
     def create_energy_dict(self) -> dict[EnergyUsage]:
@@ -87,7 +86,7 @@ class Amber:
         energy_dict = self.energy_dict.copy()
         for item in usage:
             # append values to the list of values in each dict key
-            energy_dict["type"].append(item.type)
+            energy_dict["energy_type"].append(item.type)
             energy_dict["duration"].append(item.duration)
             energy_dict["spot_per_kwh"].append(item.spot_per_kwh)
             energy_dict["per_kwh"].append(item.per_kwh)
@@ -102,5 +101,5 @@ class Amber:
             energy_dict["channel_identifier"].append(item.channel_identifier)
             energy_dict["kwh"].append(item.kwh)
             energy_dict["quality"].append(item.quality)
-            energy_dict["cost"].append(item.cost)
+            energy_dict["energy_cost"].append(item.cost)
         return energy_dict
