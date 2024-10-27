@@ -52,7 +52,7 @@ class Amber:
         self.default_end_date = datetime.today() - timedelta(days=1, hours=22)
         self.energy_dict: EnergyUsage = self.create_energy_dict()
 
-    def create_energy_dict(self) -> dict[EnergyUsage]:
+    def create_energy_dict(self) -> EnergyUsage:
         keys = EnergyUsage.__annotations__.keys()
         dict_to_create = {}
         for key in keys:
@@ -82,24 +82,28 @@ class Amber:
 
         return results
 
-    def unwrap_usage(self, usage: list[Usage]):
-        energy_dict = self.energy_dict.copy()
+    def unwrap_usage(self, usage: list[Usage]) -> list[EnergyUsage]:
+        energy_list = []
         for item in usage:
-            # append values to the list of values in each dict key
-            energy_dict["energy_type"].append(item.type)
-            energy_dict["duration"].append(item.duration)
-            energy_dict["spot_per_kwh"].append(item.spot_per_kwh)
-            energy_dict["per_kwh"].append(item.per_kwh)
-            energy_dict["date"].append(item.var_date)
-            energy_dict["nem_time"].append(item.nem_time)
-            energy_dict["start_time"].append(item.start_time)
-            energy_dict["end_time"].append(item.end_time)
-            energy_dict["renewables"].append(item.renewables)
-            energy_dict["channel_type"].append(item.channel_type.value)
-            energy_dict["spike_status"].append(item.spike_status.value)
-            energy_dict["descriptor"].append(item.descriptor.value)
-            energy_dict["channel_identifier"].append(item.channel_identifier)
-            energy_dict["kwh"].append(item.kwh)
-            energy_dict["quality"].append(item.quality)
-            energy_dict["energy_cost"].append(item.cost)
-        return energy_dict
+            energy_dict = {}
+            # Each usage item in the list is converted into a dictionary
+            energy_dict["energy_type"] = item.type
+            energy_dict["duration"] = item.duration
+            energy_dict["spot_per_kwh"] = item.spot_per_kwh
+            energy_dict["per_kwh"] = item.per_kwh
+            energy_dict["date"] = item.var_date
+            energy_dict["nem_time"] = item.nem_time
+            energy_dict["start_time"] = item.start_time
+            energy_dict["end_time"] = item.end_time
+            energy_dict["renewables"] = item.renewables
+            energy_dict["channel_type"] = item.channel_type
+            energy_dict["spike_status"] = item.spike_status
+            energy_dict["descriptor"] = item.descriptor
+            energy_dict["channel_identifier"] = item.channel_identifier
+            energy_dict["kwh"] = item.kwh
+            energy_dict["quality"] = item.quality
+            energy_dict["energy_cost"] = item.cost
+            # The final dictionary is appended to a list, containing a list of EnergyUsage dictionaries
+            energy_list.append(energy_dict)
+
+        return energy_list
