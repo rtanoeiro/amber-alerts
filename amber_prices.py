@@ -4,5 +4,5 @@ if __name__ == "__main__":
 
     amber_obj = Amber()
     results = amber_obj.get_usage()
-    energy_results = amber_obj.unwrap_usage(results)
-    insert_into_usage_table(energy_results)
+    energy_list = amber_obj.unwrap_usage(results)
+    insert_into_usage_table(energy_list)
