@@ -53,25 +53,27 @@ def test_unwrap_usage(amber_obj: Amber):
         )
     ]
     energy_dict = amber_obj.unwrap_usage(data)
-    assert energy_dict == {
-        "energy_type": ["Usage"],
-        "duration": [30],
-        "spot_per_kwh": [10.82936],
-        "per_kwh": [21.95831],
-        "date": [datetime.date(2024, 10, 25)],
-        "nem_time": [datetime.datetime(2024, 10, 25, 0, 30)],
-        "start_time": [
-            datetime.datetime(2024, 10, 24, 14, 0, 1, tzinfo=datetime.timezone.utc)
-        ],
-        "end_time": [
-            datetime.datetime(2024, 10, 24, 14, 30, tzinfo=datetime.timezone.utc)
-        ],
-        "renewables": [31.671],
-        "channel_type": ["general"],
-        "spike_status": ["none"],
-        "descriptor": ["veryLow"],
-        "channel_identifier": ["E1"],
-        "kwh": [0.069],
-        "quality": ["billable"],
-        "energy_cost": [1.5151],
-    }
+    assert energy_dict == [
+        {
+            "energy_type": "Usage",
+            "duration": 30,
+            "spot_per_kwh": 10.82936,
+            "per_kwh": 21.95831,
+            "date": datetime.date(2024, 10, 25),
+            "nem_time": datetime.datetime(2024, 10, 25, 0, 30),
+            "start_time": datetime.datetime(
+                2024, 10, 24, 14, 0, 1, tzinfo=datetime.timezone.utc
+            ),
+            "end_time": datetime.datetime(
+                2024, 10, 24, 14, 30, tzinfo=datetime.timezone.utc
+            ),
+            "renewables": 31.671,
+            "channel_type": "general",
+            "spike_status": "none",
+            "descriptor": "veryLow",
+            "channel_identifier": "E1",
+            "kwh": 0.069,
+            "quality": "billable",
+            "energy_cost": 1.5151,
+        }
+    ]
