@@ -9,6 +9,7 @@ python-dotenv = "*"
 pre-commit = "*"
 ruff = "*"
 mypy = "*"
+psycopg2 = "*"
 
 [dev-packages]
 ruff = "*"
