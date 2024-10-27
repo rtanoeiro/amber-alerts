@@ -1,8 +1,10 @@
 import logging
 import os
+from typing import TypedDict
 
 from datetime import datetime, timedelta
 from amberelectric.exceptions import ApiException
+from amberelectric.models.usage import Usage
 from dotenv import load_dotenv
 from amberelectric.api.amber_api import AmberApi
 from amberelectric.configuration import Configuration
@@ -12,6 +14,18 @@ load_dotenv()
 
 AMBER_KEY = os.getenv("AMBER_KEY")
 SITE_ID = os.getenv("SITE_ID")
+
+
+class EnergyUsage(TypedDict):
+    channel: str
+    cost: float
+    descriptor: str
+    duration: int
+    nem_time: datetime
+    kwh: float
+    per_kwh: float
+    quality: str
+    renewables: float
 
 
 class Amber:
@@ -27,8 +41,9 @@ class Amber:
         self.configuration = Configuration(access_token=AMBER_KEY)
         self.api = AmberApi(api_client=ApiClient(configuration=self.configuration))
         self.site_id = self.fetch_site_id()
-        self.default_start_date = datetime.today() - timedelta(days=1)
-        self.default_end_date = datetime.today()
+        self.default_start_date = datetime.today() - timedelta(days=2)
+        self.default_end_date = datetime.today() - timedelta(days=1)
+        self.energy_dict: EnergyUsage = {}
 
     def fetch_site_id(self):
         if SITE_ID:
@@ -49,5 +64,16 @@ class Amber:
             start_date=self.default_start_date,
             end_date=self.default_end_date,
         )
-        with open("usage.json", "w") as f:
-            f.write(str(results))
+        return results
+
+    def unwrap_usage(self, usage: list[Usage]):
+        for item in usage:
+            self.energy_dict["channel"] = item.channel_type
+            self.energy_dict["cost"] = item.cost
+            self.energy_dict["descriptor"] = item.descriptor
+            self.energy_dict["duration"] = item.duration
+            self.energy_dict["nem_time"] = item.nem_time
+            self.energy_dict["kwh"] = item.kwh
+            self.energy_dict["per_kwh"] = item.per_kwh
+            self.energy_dict["quality"] = item.quality
+            self.energy_dict["renewable"] = item.renewables
