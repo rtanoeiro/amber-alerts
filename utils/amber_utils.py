@@ -5,6 +5,7 @@ from typing import TypedDict
 from datetime import datetime, timedelta
 from amberelectric.exceptions import ApiException
 from amberelectric.models.usage import Usage
+from amberelectric.models.spike_status import SpikeStatus
 from dotenv import load_dotenv
 from amberelectric.api.amber_api import AmberApi
 from amberelectric.configuration import Configuration
@@ -17,15 +18,22 @@ SITE_ID = os.getenv("SITE_ID")
 
 
 class EnergyUsage(TypedDict):
-    channel: str
-    cost: float
-    descriptor: str
-    duration: int
-    nem_time: datetime
-    kwh: float
-    per_kwh: float
-    quality: str
-    renewables: float
+    type: list[str]
+    duration: list[int]
+    spot_per_kwh: list[float]
+    per_kwh: list[float]
+    date: list[datetime]
+    nem_time: list[datetime]
+    start_time: list[datetime]
+    end_time: list[datetime]
+    renewables: list[float]
+    channel_type: list[str]
+    spike_status: list[SpikeStatus]
+    descriptor: list[float]
+    channel_identifier: list[str]
+    kwh: list[float]
+    quality: list[str]
+    cost: list[float]
 
 
 class Amber:
@@ -43,7 +51,15 @@ class Amber:
         self.site_id = self.fetch_site_id()
         self.default_start_date = datetime.today() - timedelta(days=2)
         self.default_end_date = datetime.today() - timedelta(days=1)
-        self.energy_dict: EnergyUsage = {}
+        self.energy_dict: EnergyUsage = self.create_energy_dict()
+
+    def create_energy_dict(self) -> dict[EnergyUsage]:
+        keys = EnergyUsage.__annotations__.keys()
+        dict_to_create = {}
+        for key in keys:
+            dict_to_create[key] = []
+
+        return dict_to_create
 
     def fetch_site_id(self):
         if SITE_ID:
@@ -64,16 +80,27 @@ class Amber:
             start_date=self.default_start_date,
             end_date=self.default_end_date,
         )
+
         return results
 
     def unwrap_usage(self, usage: list[Usage]):
+        energy_dict = self.energy_dict.copy()
         for item in usage:
-            self.energy_dict["channel"] = item.channel_type
-            self.energy_dict["cost"] = item.cost
-            self.energy_dict["descriptor"] = item.descriptor
-            self.energy_dict["duration"] = item.duration
-            self.energy_dict["nem_time"] = item.nem_time
-            self.energy_dict["kwh"] = item.kwh
-            self.energy_dict["per_kwh"] = item.per_kwh
-            self.energy_dict["quality"] = item.quality
-            self.energy_dict["renewable"] = item.renewables
+            # append values to the list of values in each dict key
+            energy_dict["type"].append(item.type)
+            energy_dict["duration"].append(item.duration)
+            energy_dict["spot_per_kwh"].append(item.spot_per_kwh)
+            energy_dict["per_kwh"].append(item.per_kwh)
+            energy_dict["date"].append(item.var_date)
+            energy_dict["nem_time"].append(item.nem_time)
+            energy_dict["start_time"].append(item.start_time)
+            energy_dict["end_time"].append(item.end_time)
+            energy_dict["renewables"].append(item.renewables)
+            energy_dict["channel_type"].append(item.channel_type.value)
+            energy_dict["spike_status"].append(item.spike_status.value)
+            energy_dict["descriptor"].append(item.descriptor.value)
+            energy_dict["channel_identifier"].append(item.channel_identifier)
+            energy_dict["kwh"].append(item.kwh)
+            energy_dict["quality"].append(item.quality)
+            energy_dict["cost"].append(item.cost)
+        return energy_dict
